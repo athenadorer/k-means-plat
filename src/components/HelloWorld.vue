@@ -56,8 +56,8 @@ import {
   UserOutlined,
   TeamOutlined,
   FileOutlined,
-} from "@ant-design/icons-vue";
-// import echarts from "echarts";
+} from '@ant-design/icons-vue'
+// import echarts from 'echarts'
 // import "echarts-gl";
 
 export default {
@@ -71,10 +71,10 @@ export default {
   data() {
     return {
       collapsed: false,
-      selectedKeys: ["1"],
-    };
+      selectedKeys: ['1'],
+    }
   },
-};
+}
 </script>
 
 <style></style>
