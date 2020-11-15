@@ -216,10 +216,11 @@ export default {
                 title: column.value,
                 dataIndex: column.value,
               })),
-              dataSource: this.table.dataSource.map((rowData) => {
+              dataSource: this.table.dataSource.map((rowData, rowIndex) => {
                 const row = {}
                 this.table.columns.forEach((column, index) => {
                   row[column.value] = rowData[index]
+                  row.id = rowIndex + 1
                 })
                 return row
               }),

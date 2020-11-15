@@ -5,7 +5,10 @@
         创建数据表
       </a-button></template
     >
-    <a-table :columns="columns" :data-source="dataSource"
+    <a-table
+      :columns="columns"
+      :data-source="dataSource"
+      :show-header="Boolean(dataSource.length)"
       ><template #operation="{ record }">
         <a @click="check(record.key)">查看</a>
         <a-divider type="vertical" />
@@ -36,14 +39,12 @@ export default {
       columns: [
         {
           title: '表名',
+          width: '10%',
           dataIndex: 'name',
         },
         {
-          title: '哈希值',
-          dataIndex: 'key',
-        },
-        {
           title: '列名',
+          width: '10%',
           dataIndex: 'columns',
         },
         {
@@ -52,6 +53,7 @@ export default {
         },
         {
           title: '操作',
+          width: 105,
           dataIndex: 'operation',
           slots: { customRender: 'operation' },
         },
@@ -86,7 +88,7 @@ export default {
       this.$store.removeItem(key).then(this.fetch)
     },
     check(key) {
-      this.$store.getItem(key).then(console.log)
+      this.$router.push({ name: 'table', params: { key } })
     },
     onClose(changed) {
       this.visible = false
