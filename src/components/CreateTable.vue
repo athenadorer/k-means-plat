@@ -11,7 +11,7 @@
       type="file"
       accept="application/vnd.ms-excel, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
       style="display: none"
-      @change="$refs.fileInput.files.length && parse()"
+      @change="$refs.fileInput.files.length && prepare()"
     />
     <a-button
       type="primary"
@@ -20,14 +20,41 @@
     >
       <FileExcelOutlined />通过Excel文件创建
     </a-button>
+    <template v-if="options.visible">
+      <a-select
+        v-model:value="options.sheetSelected"
+        style="width: 100%; margin: 20px 0"
+        placeholder="选择要解析的数据表"
+        @change="parse"
+      >
+        <a-select-option
+          v-for="sheet in options.sheets"
+          :key="sheet"
+          :value="sheet"
+          >{{ sheet }}</a-select-option
+        >
+      </a-select>
+      <a-radio-group
+        v-model:value="options.preheaderIsColumn"
+        style="width: 100%"
+        @change="parse"
+      >
+        <a-radio-button :value="true" style="width: 50%; text-align: center"
+          >将首行解析为列名</a-radio-button
+        >
+        <a-radio-button :value="false" style="width: 50%; text-align: center"
+          >将首行解析为数据</a-radio-button
+        >
+      </a-radio-group>
+    </template>
     <a-divider />
     <template #footer>
-      <span class="prompt" :class="prompt.type"
+      <!-- <span class="prompt" :class="prompt.type"
         ><component
           :is="promptIcons[prompt.type]"
           style="margin-right: 4px"
         />{{ prompt.text }}</span
-      >
+      > -->
       <a-button @click="close(false)">取消</a-button>
       <a-button type="primary" @click="submit">创建</a-button>
     </template>
@@ -77,9 +104,9 @@ import {
   MinusCircleOutlined,
   PlusOutlined,
   FileExcelOutlined,
-  SmileOutlined,
-  MehOutlined,
-  FrownOutlined,
+  // SmileOutlined,
+  // MehOutlined,
+  // FrownOutlined,
 } from '@ant-design/icons-vue'
 import message from 'ant-design-vue/lib/message'
 import XLSX from 'xlsx'
@@ -88,9 +115,9 @@ export default {
     MinusCircleOutlined,
     PlusOutlined,
     FileExcelOutlined,
-    SmileOutlined,
-    MehOutlined,
-    FrownOutlined,
+    // SmileOutlined,
+    // MehOutlined,
+    // FrownOutlined,
   },
   props: {
     visible: Boolean,
@@ -99,7 +126,7 @@ export default {
   data() {
     let validateSame = async (rule, value) => {
       if (!value) {
-        return Promise.reject('请输入数据表名')
+        return Promise.reject('请输入列名')
       } else if (
         this.table.columns.filter((column) => column.value === value).length > 1
       ) {
@@ -109,40 +136,46 @@ export default {
       }
     }
     return {
-      promptIcons: {
-        success: SmileOutlined,
-        warning: MehOutlined,
-        error: FrownOutlined,
+      options: {
+        visible: false,
+        preheaderIsColumn: true,
+        sheetSelected: undefined,
+        sheets: [],
       },
-      fileList: [],
+      file: null,
       table: {
         name: '',
         columns: [],
         dataSource: [],
       },
+      // promptIcons: {
+      //   success: SmileOutlined,
+      //   warning: MehOutlined,
+      //   error: FrownOutlined,
+      // },
       columnRule: { validator: validateSame, trigger: 'change' },
     }
   },
-  computed: {
-    prompt() {
-      if (this.table.columns.length <= 1) {
-        return {
-          type: 'error',
-          text: '当前特征维度数量不足',
-        }
-      } else if (this.table.columns.length <= 3) {
-        return {
-          type: 'success',
-          text: '当前特征维度数量良好',
-        }
-      } else {
-        return {
-          type: 'warning',
-          text: '当前特征维度数量较多',
-        }
-      }
-    },
-  },
+  // computed: {
+  //   prompt() {
+  //     if (this.table.columns.length <= 1) {
+  //       return {
+  //         type: 'error',
+  //         text: '当前特征维度数量不足',
+  //       }
+  //     } else if (this.table.columns.length <= 3) {
+  //       return {
+  //         type: 'success',
+  //         text: '当前特征维度数量良好',
+  //       }
+  //     } else {
+  //       return {
+  //         type: 'warning',
+  //         text: '当前特征维度数量较多',
+  //       }
+  //     }
+  //   },
+  // },
   watch: {
     visible(visible) {
       if (visible) {
@@ -158,42 +191,60 @@ export default {
     },
   },
   methods: {
-    parse() {
-      const file = this.$refs.fileInput.files[0]
+    prepare() {
+      this.file = this.$refs.fileInput.files[0]
       this.$refs.fileInput.value = ''
-      this.table.name = file.name.split('.')[0]
+      this.table.name = this.file.name.split('.')[0]
       const reader = new FileReader()
       reader.onload = (event) => {
         const data = new Uint8Array(event.target.result)
         const workbook = XLSX.read(data, { type: 'array' })
-        const worksheet = workbook.Sheets[workbook.SheetNames[0]]
+        this.options.sheets = workbook.SheetNames
+        this.options.sheetSelected = undefined
+        this.options.visible = true
+      }
+      reader.readAsArrayBuffer(this.file)
+    },
+    parse() {
+      this.table.name = `${this.file.name.split('.')[0]}.${
+        this.options.sheetSelected
+      }`
+      const reader = new FileReader()
+      reader.onload = (event) => {
+        const data = new Uint8Array(event.target.result)
+        const workbook = XLSX.read(data, { type: 'array' })
+        const worksheet = workbook.Sheets[this.options.sheetSelected]
         const sheetData = XLSX.utils.sheet_to_json(worksheet, {
           header: 1,
         })
-        sheetData[0] = [...sheetData[0]]
-        if (
-          Object.getOwnPropertyNames(worksheet)
-            .filter(
-              (prop) => prop.indexOf(worksheet['!ref'].split(':')[0][1]) !== -1
+        if (sheetData.length) {
+          sheetData[0] = [...sheetData[0]]
+          if (this.options.preheaderIsColumn) {
+            sheetData[0] = sheetData[0].map((name) =>
+              name ? String(name) : ''
             )
-            .some((prop) => worksheet[prop].t === 's')
-        ) {
-          sheetData[0] = sheetData[0].map((name) => (name ? String(name) : ''))
+          } else {
+            sheetData.unshift(sheetData[0].map(() => ''))
+          }
+          this.table.columns = sheetData[0].map((column, index) => ({
+            key: this.table.columns[index]
+              ? this.table.columns[index].key
+              : this.$createHash(),
+            value: column,
+          }))
+          this.table.dataSource = sheetData.slice(1)
         } else {
-          sheetData.unshift(sheetData[0].map(() => ''))
+          this.table.columns = this.table.columns.map((column) => ({
+            key: column.key,
+            value: '',
+          }))
+          this.table.dataSource = []
         }
-        this.table.columns = sheetData[0].map((column, index) => ({
-          key: this.table.columns[index]
-            ? this.table.columns[index].key
-            : this.$createHash(),
-          value: column,
-        }))
-        this.table.dataSource = sheetData.slice(1)
         this.$nextTick(() => {
           this.$refs.tableForm.validate()
         })
       }
-      reader.readAsArrayBuffer(file)
+      reader.readAsArrayBuffer(this.file)
     },
     append() {
       this.table.columns.push({ key: this.$createHash(), value: '' })
@@ -239,7 +290,7 @@ export default {
 
 <style scoped>
 ::placeholder,
-::v-deep .ant-form-explain {
+::v-deep(.ant-form-explain) {
   user-select: none;
 }
 
@@ -248,7 +299,7 @@ export default {
   opacity: 0.5;
 }
 
-.prompt {
+/* .prompt {
   float: left;
   height: 32px;
   padding: 0 8px;
@@ -269,5 +320,5 @@ export default {
 .prompt.error {
   background-color: rgb(255, 241, 240);
   border: 1px solid rgb(255, 163, 158);
-}
+} */
 </style>
