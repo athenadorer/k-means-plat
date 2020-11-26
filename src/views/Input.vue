@@ -10,7 +10,7 @@
       :data-source="dataSource"
       :show-header="Boolean(dataSource.length)"
       ><template #operation="{ record }">
-        <a @click="check(record.key)">查看</a>
+        <a class="operation" @click="check(record.key)">查看</a>
         <a-divider type="vertical" />
         <a-popconfirm
           title="确定要删除吗？"
@@ -18,7 +18,7 @@
           cancel-text="取消"
           @confirm="remove(record.key)"
         >
-          <a>删除</a>
+          <a class="operation">删除</a>
         </a-popconfirm>
       </template>
     </a-table>
@@ -44,11 +44,12 @@ export default {
         },
         {
           title: '列名',
-          width: '10%',
+          width: '12%',
           dataIndex: 'columns',
         },
         {
           title: '数据源',
+          ellipsis: true,
           dataIndex: 'dataSource',
         },
         {
@@ -98,4 +99,8 @@ export default {
 }
 </script>
 
-<style scoped></style>
+<style scoped>
+a.operation {
+  user-select: none;
+}
+</style>

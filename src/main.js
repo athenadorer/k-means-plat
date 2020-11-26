@@ -13,11 +13,13 @@ import Layout from 'ant-design-vue/lib/layout'
 import Menu from 'ant-design-vue/lib/menu'
 import Modal from 'ant-design-vue/lib/modal'
 import Popconfirm from 'ant-design-vue/lib/popconfirm'
+import Radio from 'ant-design-vue/lib/radio'
+import Select from 'ant-design-vue/lib/select'
 import Table from 'ant-design-vue/lib/table'
 import Tag from 'ant-design-vue/lib/tag'
 import Upload from 'ant-design-vue/lib/upload'
-import Select from 'ant-design-vue/lib/select'
-import Radio from 'ant-design-vue/lib/radio'
+
+import axios from 'axios'
 
 import localForage from 'localforage'
 
@@ -35,11 +37,13 @@ app.use(Layout)
 app.use(Menu)
 app.use(Modal)
 app.use(Popconfirm)
+app.use(Radio)
+app.use(Select)
 app.use(Table)
 app.use(Tag)
 app.use(Upload)
-app.use(Select)
-app.use(Radio)
+
+app.config.globalProperties.$http = axios
 
 app.config.globalProperties.$store = localForage.createInstance({
   name: 'tables',
