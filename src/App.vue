@@ -32,10 +32,8 @@
       </a-menu>
     </a-layout-sider>
     <a-layout>
-      <a-layout-content style="margin: 0 16px">
-        <div style="margin: 16px 0">
-          <router-view />
-        </div>
+      <a-layout-content style="margin: 16px; margin-right: 0">
+        <router-view />
       </a-layout-content>
     </a-layout>
   </a-layout>
@@ -77,4 +75,8 @@ export default {
 }
 </script>
 
-<style></style>
+<style>
+html {
+  overflow-y: scroll;
+}
+</style>

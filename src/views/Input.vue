@@ -1,14 +1,17 @@
 <template>
   <a-card title="数据输入" style="width: 100%; min-height: calc(100vh - 32px)">
-    <template #extra
-      ><a-button type="primary" @click="visible = true">
-        创建数据表
-      </a-button></template
-    >
+    <template #extra>
+      <a-button type="primary" @click="createModal = { visible: true }"
+        >创建新表</a-button
+      >
+      <a-button @click="fetch">刷新</a-button>
+    </template>
     <a-table
       :columns="columns"
       :data-source="dataSource"
+      :loading="loading"
       :show-header="Boolean(dataSource.length)"
+      bordered
       ><template #operation="{ record }">
         <a class="operation" @click="check(record.key)">查看</a>
         <a-divider type="vertical" />
@@ -22,7 +25,12 @@
         </a-popconfirm>
       </template>
     </a-table>
-    <CreateTable :visible="visible" @close="onClose" />
+    <CreateTable
+      v-if="createModal"
+      :visible="createModal.visible"
+      @close="onClose"
+      @after-close="createModal = undefined"
+    />
   </a-card>
 </template>
 
@@ -35,26 +43,26 @@ export default {
   },
   data() {
     return {
-      visible: false,
+      loading: true,
+      createModal: undefined,
       columns: [
         {
           title: '表名',
-          width: '10%',
           dataIndex: 'name',
         },
         {
           title: '列名',
-          width: '12%',
           dataIndex: 'columns',
         },
         {
           title: '数据源',
+          width: '70%',
           ellipsis: true,
           dataIndex: 'dataSource',
         },
         {
           title: '操作',
-          width: 105,
+          width: 106,
           dataIndex: 'operation',
           slots: { customRender: 'operation' },
         },
@@ -67,15 +75,26 @@ export default {
     this.fetch()
   },
   methods: {
+    log(...args) {
+      console.log('log', ...args)
+    },
     fetch() {
+      this.loading = true
       const dataSource = []
       this.$store
         .iterate((table, key) => {
           dataSource.push({
             key,
             name: table.name,
-            columns: String(table.columns.map((column) => column.title)),
-            dataSource: JSON.stringify(table.dataSource),
+            columns: String(
+              table.columns.map((column) => column.dataIndex).join(' ')
+            ),
+            dataSource: JSON.stringify(
+              table.dataSource.map((dataRow) => {
+                delete dataRow.__id__
+                return dataRow
+              })
+            ),
             timestamp: table.timestamp,
           })
         })
@@ -83,6 +102,9 @@ export default {
           this.dataSource = dataSource.sort(
             (ta, tb) => tb.timestamp - ta.timestamp
           )
+        })
+        .finally(() => {
+          this.loading = false
         })
     },
     remove(key) {
@@ -92,7 +114,7 @@ export default {
       this.$router.push({ name: 'table', params: { key } })
     },
     onClose(changed) {
-      this.visible = false
+      this.createModal.visible = false
       if (changed) this.fetch()
     },
   },
@@ -102,5 +124,9 @@ export default {
 <style scoped>
 a.operation {
   user-select: none;
+}
+
+.ant-btn + .ant-btn {
+  margin-left: 8px;
 }
 </style>

@@ -4,6 +4,7 @@
     :visible="visible"
     :mask-closable="false"
     centered
+    :after-close="afterClose"
     @cancel="close(false)"
   >
     <input
@@ -37,7 +38,7 @@
       <a-radio-group
         v-model:value="options.preheaderIsColumn"
         style="width: 100%"
-        @change="parse"
+        @change="options.sheetSelected && parse()"
       >
         <a-radio-button :value="true" style="width: 50%; text-align: center"
           >将首行解析为列名</a-radio-button
@@ -49,12 +50,6 @@
     </template>
     <a-divider />
     <template #footer>
-      <!-- <span class="prompt" :class="prompt.type"
-        ><component
-          :is="promptIcons[prompt.type]"
-          style="margin-right: 4px"
-        />{{ prompt.text }}</span
-      > -->
       <a-button @click="close(false)">取消</a-button>
       <a-button type="primary" @click="submit">创建</a-button>
     </template>
@@ -67,6 +62,7 @@
           required: true,
           message: '请输入数据表名',
           trigger: 'change',
+          whitespace: true,
         }"
       >
         <a-input
@@ -84,6 +80,7 @@
           v-model:value="column.value"
           placeholder="请输入列名"
           style="margin-right: 8px; width: calc(100% - 32px)"
+          @change="onChange"
         />
         <MinusCircleOutlined
           :class="{ disabled: table.columns.length === 1 }"
@@ -104,9 +101,6 @@ import {
   MinusCircleOutlined,
   PlusOutlined,
   FileExcelOutlined,
-  // SmileOutlined,
-  // MehOutlined,
-  // FrownOutlined,
 } from '@ant-design/icons-vue'
 import message from 'ant-design-vue/lib/message'
 import XLSX from 'xlsx'
@@ -115,20 +109,20 @@ export default {
     MinusCircleOutlined,
     PlusOutlined,
     FileExcelOutlined,
-    // SmileOutlined,
-    // MehOutlined,
-    // FrownOutlined,
   },
   props: {
     visible: Boolean,
   },
-  emits: ['close'],
+  emits: ['close', 'after-close'],
   data() {
     let validateSame = async (rule, value) => {
       if (!value) {
         return Promise.reject('请输入列名')
+      } else if (~['__id__', '__editable__', '__operation__'].indexOf(value)) {
+        return Promise.reject('列名不合法')
       } else if (
-        this.table.columns.filter((column) => column.value === value).length > 1
+        this.table.columns.filter((column) => column.value.trim() === value)
+          .length > 1
       ) {
         return Promise.reject('列名不能重复')
       } else {
@@ -145,50 +139,18 @@ export default {
       file: null,
       table: {
         name: '',
-        columns: [],
+        columns: [
+          { key: this.$createHash(), value: '' },
+          { key: this.$createHash(), value: '' },
+        ],
         dataSource: [],
       },
-      // promptIcons: {
-      //   success: SmileOutlined,
-      //   warning: MehOutlined,
-      //   error: FrownOutlined,
-      // },
-      columnRule: { validator: validateSame, trigger: 'change' },
+      columnRule: {
+        validator: validateSame,
+        trigger: 'change',
+        transform: (value) => value.trim(),
+      },
     }
-  },
-  // computed: {
-  //   prompt() {
-  //     if (this.table.columns.length <= 1) {
-  //       return {
-  //         type: 'error',
-  //         text: '当前特征维度数量不足',
-  //       }
-  //     } else if (this.table.columns.length <= 3) {
-  //       return {
-  //         type: 'success',
-  //         text: '当前特征维度数量良好',
-  //       }
-  //     } else {
-  //       return {
-  //         type: 'warning',
-  //         text: '当前特征维度数量较多',
-  //       }
-  //     }
-  //   },
-  // },
-  watch: {
-    visible(visible) {
-      if (visible) {
-        this.table = {
-          name: '',
-          columns: [
-            { key: this.$createHash(), value: '' },
-            { key: this.$createHash(), value: '' },
-          ],
-          dataSource: [],
-        }
-      }
-    },
   },
   methods: {
     prepare() {
@@ -256,33 +218,47 @@ export default {
     close(changed = false) {
       this.$emit('close', changed)
     },
+    afterClose() {
+      this.$emit('after-close')
+    },
     submit() {
       this.$refs.tableForm
         .validate()
         .then(() => {
           this.$store
             .setItem(this.$createHash(), {
-              name: this.table.name,
-              columns: this.table.columns.map((column) => ({
-                title: column.value,
-                dataIndex: column.value,
+              name: this.table.name.trim(),
+              columns: this.table.columns.map((column, index) => ({
+                dataIndex: column.value.trim(),
+                data: this.table.dataSource
+                  .map((dataRow) => dataRow[index])
+                  .every((data) => typeof data === 'number'),
               })),
               dataSource: this.table.dataSource.map((rowData, rowIndex) => {
                 const row = {}
                 this.table.columns.forEach((column, index) => {
                   row[column.value] = rowData[index]
-                  row.id = rowIndex + 1
+                  row.__id__ = rowIndex + 1
                 })
                 return row
               }),
               timestamp: Date.now(),
             })
             .then(() => {
-              message.success('创建成功')
+              message.success('创建成功', 1)
               this.close(true)
             })
         })
         .catch(() => {})
+    },
+    onChange() {
+      this.$refs.tableForm.validate(
+        this.$refs.tableForm.fields
+          .filter(
+            (field) => ~field.name.indexOf('columns') && field.validateState
+          )
+          .map((column) => column.name)
+      )
     },
   },
 }
@@ -298,27 +274,4 @@ export default {
   pointer-events: none;
   opacity: 0.5;
 }
-
-/* .prompt {
-  float: left;
-  height: 32px;
-  padding: 0 8px;
-  line-height: 32px;
-  user-select: none;
-}
-
-.prompt.success {
-  background-color: rgb(246, 255, 237);
-  border: 1px solid rgb(183, 235, 143);
-}
-
-.prompt.warning {
-  background-color: rgb(255, 251, 230);
-  border: 1px solid rgb(255, 229, 143);
-}
-
-.prompt.error {
-  background-color: rgb(255, 241, 240);
-  border: 1px solid rgb(255, 163, 158);
-} */
 </style>
