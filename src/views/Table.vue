@@ -1,7 +1,8 @@
 <template>
-  <a-card style="width: 100%; min-height: calc(100vh - 32px)"
+  <a-card class="main"
     ><template #title
-      >{{ title }}表详情<a-tag v-if="editMode" class="mode" color="#40a9ff"
+      >{{ title
+      }}<a-tag v-if="editMode" class="mode" color="#40a9ff"
         ><FormOutlined />&nbsp;编辑模式</a-tag
       ></template
     ><template #extra
@@ -32,46 +33,47 @@
       ><a-button
         type="primary"
         :disabled="editingRow !== false"
-        @click="edit"
+        @click="editMode ? exitEditMode(true) : (editMode = true)"
         >{{ editMode ? '保存编辑' : '编辑模式' }}</a-button
       ><a-button
         :disabled="editingRow !== false"
         v-bind="editMode ? { type: 'danger' } : {}"
-        @click="editMode ? cancel() : $router.go(-1)"
+        @click="editMode ? exitEditMode(false) : $router.go(-1)"
         >{{ editMode ? '退出编辑' : '返回' }}</a-button
       ></template
     >
     <div style="margin-bottom: 24px">
-      <a-collapse>
-        <a-collapse-panel header="有效性检查"
-          ><a-list size="small" bordered :data-source="validators">
-            <template #renderItem="{ item }">
-              <a-list-item :class="item.state"
-                ><component
-                  :is="getIcon(item.state)"
-                  style="margin-right: 8px"
-                ></component
-                >{{ item.text }}</a-list-item
-              >
-            </template>
-          </a-list>
-        </a-collapse-panel></a-collapse
-      >
-      <a-list
-        size="small"
-        bordered
-        :data-source="[validity]"
-        :loading="loading"
-        style="border-top: 0"
-        ><template #renderItem="{ item }">
-          <a-list-item :class="item.state" style="padding: 12px 16px"
-            ><component
-              :is="getIcon(item.state)"
-              style="margin-right: 8px"
-            ></component
-            >{{ item.text }}</a-list-item
-          >
-        </template></a-list
+      <a-spin :spinning="loading">
+        <a-collapse>
+          <a-collapse-panel header="有效性检查"
+            ><a-list size="small" bordered :data-source="validators">
+              <template #renderItem="{ item }">
+                <a-list-item :class="item.state"
+                  ><component
+                    :is="getIcon(item.state)"
+                    style="margin-right: 8px"
+                  ></component
+                  >{{ item.text }}</a-list-item
+                >
+              </template>
+            </a-list>
+          </a-collapse-panel></a-collapse
+        >
+        <a-list
+          size="small"
+          bordered
+          :data-source="[validity]"
+          style="border-top: 0"
+          ><template #renderItem="{ item }">
+            <a-list-item :class="item.state" style="padding: 12px 16px"
+              ><component
+                :is="getIcon(item.state)"
+                style="margin-right: 8px"
+              ></component
+              >{{ item.text }}</a-list-item
+            >
+          </template></a-list
+        ></a-spin
       >
     </div>
     <a-table
@@ -87,12 +89,12 @@
         </span></template
       >
       <template #__operation__="{ record }">
-        <span v-if="record.__editable__">
-          <a class="operation" @click="saveRow()">保存</a>
+        <span v-if="record.__id__ === editingRow" style="white-space: nowrap">
+          <a class="operation" @click="exitEditRow(true)">保存</a>
           <a-divider type="vertical" />
-          <a class="operation" @click="rowCancel()">取消</a>
+          <a class="operation" @click="exitEditRow(false)">取消</a>
         </span>
-        <span v-else>
+        <span v-else style="white-space: nowrap">
           <a
             class="operation"
             v-bind="
@@ -126,13 +128,13 @@
       >
         <div>
           <a-input
-            v-if="record.__editable__"
+            v-if="record.__id__ === editingRow"
             :ref="`input${record.__id__}.${index}`"
             style="margin: -5px 0"
             :value="text"
             @change="(e) => onChange(record.__id__, columnName, e.target.value)"
             @blur="(e) => onBlur(record.__id__, columnName, e.target.value)"
-            @keypress.enter="saveRow"
+            @pressEnter="exitEditRow(true)"
           />
           <template v-else>
             <span :class="typeof text">{{
@@ -187,7 +189,7 @@ export default {
       title: '',
       columns: [],
       dataSource: [],
-      backup: {},
+      dataSourceBackup: undefined,
     }
   },
   computed: {
@@ -204,6 +206,11 @@ export default {
     },
     irrelevantColumns() {
       return this.userColumns.filter((column) => !column.data)
+    },
+    nextRowId() {
+      return (
+        Math.max(...this.dataSource.map((dataRow) => dataRow.__id__), 0) + 1
+      )
     },
     validators() {
       const validators = []
@@ -334,6 +341,10 @@ export default {
           this.title = table.name
           this.columns = table.columns
           this.dataSource = table.dataSource
+          if (!table.validity) {
+            table.validity = this.validity
+            this.$store.setItem(this.$route.params.key, table)
+          }
         })
         .then(() => {
           this.columns = this.columns.map((column) => ({
@@ -360,8 +371,9 @@ export default {
           this.loading = false
         })
     },
-    edit() {
-      if (this.editMode) {
+    exitEditMode(save) {
+      this.editMode = false
+      if (save) {
         this.$store.getItem(this.$route.params.key).then((table) => {
           table.columns = toRaw(
             this.columns.filter(
@@ -369,21 +381,14 @@ export default {
             )
           ).map(toRaw)
           table.dataSource = toRaw(this.dataSource).map(toRaw)
+          table.validity = this.validity
           this.$store.setItem(this.$route.params.key, table).then(() => {
             message.success('已保存', 1)
           })
         })
       } else {
-        this.backup.dataSourceOriginal = this.$deepClone(this.dataSource)
-        this.backup.columnsOriginal = this.$deepClone(this.columns)
+        this.fetch()
       }
-      this.editMode = !this.editMode
-    },
-    cancel() {
-      this.dataSource = this.backup.dataSourceOriginal
-      this.columns = this.backup.columnsOriginal
-      this.editMode = false
-      this.editingRow = false
     },
     parse() {
       this.file = this.$refs.fileInput.files[0]
@@ -396,8 +401,7 @@ export default {
         const sheetData = XLSX.utils.sheet_to_json(worksheet, {
           header: 1,
         })
-        const id =
-          Math.max(...this.dataSource.map((dataRow) => dataRow.__id__)) + 1
+        const id = this.nextRowId
         const sheetDataSource = sheetData.map((sheetRow, rowIndex) => {
           const dataRow = {}
           dataRow.__id__ = id + rowIndex
@@ -412,10 +416,9 @@ export default {
       reader.readAsArrayBuffer(this.file)
     },
     append() {
-      this.backup.dataSourceCurrent = this.$deepClone(this.dataSource)
-      const id =
-        Math.max(...this.dataSource.map((dataRow) => dataRow.__id__), 0) + 1
-      this.dataSource.push({ __id__: id, __editable__: true })
+      this.dataSourceBackup = this.$deepClone(this.dataSource)
+      const id = this.nextRowId
+      this.dataSource.push({ __id__: id })
       this.editingRow = id
       this.$nextTick(() => {
         window.scrollTo(0, document.body.scrollHeight)
@@ -428,30 +431,17 @@ export default {
       )
     },
     editRow(id) {
-      this.backup.dataSourceCurrent = this.$deepClone(this.dataSource)
-      this.dataSource = this.dataSource.map((dataRow) => {
-        if (dataRow.__id__ === id) {
-          dataRow.__editable__ = true
-        }
-        return dataRow
-      })
+      this.dataSourceBackup = this.$deepClone(this.dataSource)
       this.editingRow = id
       this.$nextTick(() => {
         this.$refs[`input${id}.0`].select()
       })
     },
-    saveRow() {
-      this.dataSource = this.dataSource.map((dataRow) => {
-        if (dataRow.__id__ === this.editingRow) {
-          delete dataRow.__editable__
-        }
-        return dataRow
-      })
+    exitEditRow(save) {
       this.editingRow = false
-    },
-    rowCancel() {
-      this.dataSource = this.backup.dataSourceCurrent
-      this.editingRow = false
+      if (!save) {
+        this.dataSource = this.dataSourceBackup
+      }
     },
     resetId() {
       this.dataSource = this.dataSource.map((dataRow, index) => ({
@@ -546,7 +536,19 @@ span + .anticon {
   text-align: center;
 }
 
-span.string,
+::v-deep(th) {
+  white-space: nowrap;
+}
+
+span.string {
+  color: #c51916;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  word-break: break-all;
+}
+
 span.string:before,
 span.string:after {
   content: '"';

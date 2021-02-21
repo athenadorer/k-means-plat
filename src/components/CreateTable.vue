@@ -4,8 +4,8 @@
     :visible="visible"
     :mask-closable="false"
     centered
-    :after-close="afterClose"
-    @cancel="close(false)"
+    :after-close="() => $emit('after-close')"
+    @cancel="$emit('close')"
   >
     <input
       ref="fileInput"
@@ -50,7 +50,7 @@
     </template>
     <a-divider />
     <template #footer>
-      <a-button @click="close(false)">取消</a-button>
+      <a-button @click="$emit('close')">取消</a-button>
       <a-button type="primary" @click="submit">创建</a-button>
     </template>
     <a-form ref="tableForm" layout="vertical" :model="table"
@@ -118,7 +118,7 @@ export default {
     let validateSame = async (rule, value) => {
       if (!value) {
         return Promise.reject('请输入列名')
-      } else if (~['__id__', '__editable__', '__operation__'].indexOf(value)) {
+      } else if (~['__id__', '__operation__'].indexOf(value)) {
         return Promise.reject('列名不合法')
       } else if (
         this.table.columns.filter((column) => column.value.trim() === value)
@@ -215,18 +215,13 @@ export default {
       this.table.columns.splice(index, 1)
       this.table.dataSource.forEach((rowData) => rowData.splice(index, 1))
     },
-    close(changed = false) {
-      this.$emit('close', changed)
-    },
-    afterClose() {
-      this.$emit('after-close')
-    },
     submit() {
       this.$refs.tableForm
         .validate()
         .then(() => {
+          const hash = this.$createHash()
           this.$store
-            .setItem(this.$createHash(), {
+            .setItem(hash, {
               name: this.table.name.trim(),
               columns: this.table.columns.map((column, index) => ({
                 dataIndex: column.value.trim(),
@@ -246,7 +241,7 @@ export default {
             })
             .then(() => {
               message.success('创建成功', 1)
-              this.close(true)
+              this.$router.push({ name: 'table', params: { key: hash } })
             })
         })
         .catch(() => {})

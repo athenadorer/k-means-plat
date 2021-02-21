@@ -14,13 +14,11 @@
           <template #title>
             <span><AppstoreOutlined /><span>功能</span></span>
           </template>
-          <a-menu-item key="input"
+          <a-menu-item key="tables"
             ><TableOutlined /><span>数据输入</span></a-menu-item
           >
-          <a-menu-item key="cluster"
-            ><router-link to="/cluster"
-              ><DotChartOutlined /><span>聚类分析</span></router-link
-            ></a-menu-item
+          <a-menu-item key="clusters">
+            <DotChartOutlined /><span>聚类分析</span></a-menu-item
           >
           <a-menu-item key="history">
             <HistoryOutlined /><span>历史记录</span>
@@ -78,5 +76,16 @@ export default {
 <style>
 html {
   overflow-y: scroll;
+}
+
+.ant-card.main {
+  width: 100%;
+  min-height: calc(100vh - 32px);
+}
+
+.ant-tooltip-placement-top .ant-tooltip-arrow::before,
+.ant-tooltip-placement-topLeft .ant-tooltip-arrow::before,
+.ant-tooltip-placement-topRight .ant-tooltip-arrow::before {
+  transform: translateY(-6.53553391px) rotate(45deg);
 }
 </style>

@@ -10,6 +10,7 @@ import Collapse from 'ant-design-vue/lib/collapse'
 import Divider from 'ant-design-vue/lib/divider'
 import Form from 'ant-design-vue/lib/form'
 import Input from 'ant-design-vue/lib/input'
+import InputNumber from 'ant-design-vue/lib/input-number'
 import Layout from 'ant-design-vue/lib/layout'
 import List from 'ant-design-vue/lib/list'
 import Menu from 'ant-design-vue/lib/menu'
@@ -17,7 +18,9 @@ import Modal from 'ant-design-vue/lib/modal'
 import Popconfirm from 'ant-design-vue/lib/popconfirm'
 import Radio from 'ant-design-vue/lib/radio'
 import Select from 'ant-design-vue/lib/select'
+import Spin from 'ant-design-vue/lib/spin'
 import Table from 'ant-design-vue/lib/table'
+import Tabs from 'ant-design-vue/lib/tabs'
 import Tag from 'ant-design-vue/lib/tag'
 import Tooltip from 'ant-design-vue/lib/tooltip'
 import Upload from 'ant-design-vue/lib/upload'
@@ -37,6 +40,7 @@ app.use(Collapse)
 app.use(Divider)
 app.use(Form)
 app.use(Input)
+app.use(InputNumber)
 app.use(Layout)
 app.use(List)
 app.use(Menu)
@@ -44,16 +48,22 @@ app.use(Modal)
 app.use(Popconfirm)
 app.use(Radio)
 app.use(Select)
+app.use(Spin)
 app.use(Table)
+app.use(Tabs)
 app.use(Tag)
 app.use(Tooltip)
 app.use(Upload)
 
-app.config.globalProperties.$http = axios
+app.config.globalProperties.$http = axios.create({
+  baseURL: 'http://localhost:8088/',
+})
 
 app.config.globalProperties.$store = localForage.createInstance({
   name: 'tables',
 })
+
+app.config.globalProperties.$echarts = require('echarts')
 
 app.config.globalProperties.$createHash = (length) =>
   Array.from(Array(+length || 24), () =>

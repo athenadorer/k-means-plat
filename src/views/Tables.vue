@@ -1,5 +1,5 @@
 <template>
-  <a-card title="数据输入" style="width: 100%; min-height: calc(100vh - 32px)">
+  <a-card title="数据输入" class="main">
     <template #extra>
       <a-button type="primary" @click="createModal = { visible: true }"
         >创建新表</a-button
@@ -24,11 +24,19 @@
           <a class="operation">删除</a>
         </a-popconfirm>
       </template>
+      <template #validity="{ text }">
+        <a-tag style="user-select: none; font-size: 14px" :color="text.state"
+          ><component :is="getIcon(text.state)" />&nbsp;{{ text.text }}</a-tag
+        >
+      </template>
+      <template #createTime="{ text }">{{
+        `${text.toLocaleDateString()} ${text.toTimeString()}`
+      }}</template>
     </a-table>
     <CreateTable
       v-if="createModal"
       :visible="createModal.visible"
-      @close="onClose"
+      @close="createModal.visible = false"
       @after-close="createModal = undefined"
     />
   </a-card>
@@ -36,10 +44,18 @@
 
 <script>
 import CreateTable from '@/components/CreateTable.vue'
+import {
+  CheckCircleOutlined,
+  ExclamationCircleOutlined,
+  CloseCircleOutlined,
+} from '@ant-design/icons-vue'
 
 export default {
   components: {
     CreateTable,
+    CheckCircleOutlined,
+    ExclamationCircleOutlined,
+    CloseCircleOutlined,
   },
   data() {
     return {
@@ -47,18 +63,31 @@ export default {
       createModal: undefined,
       columns: [
         {
-          title: '表名',
+          title: '数据表名',
+          ellipsis: true,
           dataIndex: 'name',
         },
         {
-          title: '列名',
+          title: '数据列',
+          ellipsis: true,
           dataIndex: 'columns',
         },
         {
-          title: '数据源',
-          width: '70%',
+          title: '创建时间',
           ellipsis: true,
-          dataIndex: 'dataSource',
+          dataIndex: 'createTime',
+          slots: { customRender: 'createTime' },
+        },
+        {
+          title: '数据量',
+          width: 74,
+          dataIndex: 'dataVolume',
+        },
+        {
+          title: '有效性',
+          width: 192,
+          dataIndex: 'validity',
+          slots: { customRender: 'validity' },
         },
         {
           title: '操作',
@@ -89,18 +118,14 @@ export default {
             columns: String(
               table.columns.map((column) => column.dataIndex).join(' ')
             ),
-            dataSource: JSON.stringify(
-              table.dataSource.map((dataRow) => {
-                delete dataRow.__id__
-                return dataRow
-              })
-            ),
-            timestamp: table.timestamp,
+            dataVolume: table.dataSource.length,
+            validity: table.validity,
+            createTime: new Date(table.timestamp),
           })
         })
         .then(() => {
           this.dataSource = dataSource.sort(
-            (ta, tb) => tb.timestamp - ta.timestamp
+            (ta, tb) => tb.createTime - ta.createTime
           )
         })
         .finally(() => {
@@ -113,9 +138,10 @@ export default {
     check(key) {
       this.$router.push({ name: 'table', params: { key } })
     },
-    onClose(changed) {
-      this.createModal.visible = false
-      if (changed) this.fetch()
+    getIcon(state) {
+      if (state === 'success') return 'CheckCircleOutlined'
+      if (state === 'warning') return 'ExclamationCircleOutlined'
+      if (state === 'error') return 'CloseCircleOutlined'
     },
   },
 }
@@ -128,5 +154,15 @@ a.operation {
 
 .ant-btn + .ant-btn {
   margin-left: 8px;
+}
+
+.ant-tag.state {
+  font-size: 14px;
+  margin-left: 8px;
+}
+
+::v-deep(td),
+::v-deep(th) {
+  white-space: nowrap;
 }
 </style>
